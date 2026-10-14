@@ -83,11 +83,6 @@
         .copy-btn-cn { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
         .copy-btn-en { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
         .copy-btn-my { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
-        .copy-all-btn {
-            padding: 0.55rem 1rem; border-radius: 0.6rem; font-weight: 700; font-size: 0.8rem;
-            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-        }
-        .copy-all-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.12); }
         /* 配置区折叠 */
         .tier-config { display: none; }
         .tier-config.open { display: block; }
@@ -130,21 +125,6 @@
             </button>
         </div>
     </header>
-
-    <!-- 一键批量复制栏 -->
-    <div id="bulkCopyBar" class="w-full max-w-6xl mb-6 hidden">
-        <div class="glass rounded-2xl px-5 py-4 flex flex-col md:flex-row items-center gap-3 md:gap-4 shadow-lg border border-sky-200/60">
-            <div class="flex items-center gap-2 md:mr-auto">
-                <svg class="h-5 w-5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2v-1m2-11h2a2 2 0 012 2v12a2 2 0 01-2 2h-2m-4-9v8m-4-5h8"/></svg>
-                <span class="text-sm font-bold text-slate-700">一键复制全部项目话术（<span id="bulkCount">0</span> 个项目）</span>
-            </div>
-            <div class="flex gap-2 flex-wrap justify-center">
-                <button data-action="copy-all" data-lang="chinese" class="copy-all-btn copy-btn-cn">🇨🇳 复制全部(中文)</button>
-                <button data-action="copy-all" data-lang="english" class="copy-all-btn copy-btn-en">🇬🇧 Copy All (EN)</button>
-                <button data-action="copy-all" data-lang="malay" class="copy-all-btn copy-btn-my">🇲🇾 Salin Semua (MY)</button>
-            </div>
-        </div>
-    </div>
 
     <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div class="lg:col-span-2 space-y-4" id="projectList"></div>
@@ -418,6 +398,47 @@
             clear() { this.projects = []; localStorage.removeItem(CONFIG.STORAGE_KEY); }
         };
 
+        // 奖励名称翻译词典：填写中文，复制英文/马来话术时自动翻译
+        const TIER_NAME_DICT = {
+            '现金奖励': { en: 'Cash Bonus', ms: 'Bonus Tunai' },
+            '现金': { en: 'Cash', ms: 'Tunai' },
+            '活动奖金': { en: 'Event Bonus', ms: 'Bonus Acara' },
+            '额外奖励': { en: 'Extra Bonus', ms: 'Bonus Ekstra' },
+            '专属好礼': { en: 'Exclusive Gift', ms: 'Hadiah Eksklusif' },
+            '充值宝': { en: 'Power Bank', ms: 'Power Bank' },
+            '充电宝': { en: 'Power Bank', ms: 'Power Bank' },
+            '手机': { en: 'Smartphone', ms: 'Telefon' },
+            '平板': { en: 'Tablet', ms: 'Tablet' },
+            '手表': { en: 'Watch', ms: 'Jam' },
+            '金条': { en: 'Gold Bar', ms: 'Bar Emas' },
+            '红包': { en: 'Red Packet', ms: 'Ampau' },
+            '购物券': { en: 'Voucher', ms: 'Baucar' },
+            '礼盒': { en: 'Gift Box', ms: 'Kotak Hadiah' },
+            '礼品': { en: 'Gift', ms: 'Hadiah' },
+            '实物奖励': { en: 'Physical Gift', ms: 'Hadiah Fizikal' },
+            '奖励': { en: 'Bonus', ms: 'Bonus' }
+        };
+        function translateTierName(name, lang) {
+            if (!name || lang === 'chinese') return name || '';
+            let out = String(name);
+            // 先处理带百分比的名称（如 "现金奖励 5%"），把百分号部分拆开再翻译
+            const m = out.match(/^(.*?)(\s*[\d.]+\s*%?)?$/);
+            const zhPart = m ? m[1] : out;
+            const tail = m && m[2] ? m[2] : '';
+            if (TIER_NAME_DICT[zhPart]) return TIER_NAME_DICT[zhPart][lang === 'english' ? 'en' : 'ms'] + tail;
+            // 长词优先的多词匹配
+            const keys = Object.keys(TIER_NAME_DICT).sort((a,b)=>b.length-a.length);
+            let rest = zhPart, translated = '';
+            let i = 0;
+            while (i < rest.length) {
+                let hit = null;
+                for (const k of keys) { if (rest.startsWith(k, i)) { hit = k; break; } }
+                if (hit) { translated += TIER_NAME_DICT[hit][lang === 'english' ? 'en' : 'ms'] + ' '; i += hit.length; }
+                else { translated += rest[i]; i++; }
+            }
+            return (translated.trim() + tail).trim() || name;
+        }
+
         const UI = {
             elements: {},
 
@@ -438,9 +459,7 @@
                     saveIndicator: document.getElementById('saveIndicator'),
                     lastSaved: document.getElementById('lastSaved'),
                     modalPercentTiers: document.getElementById('modalPercentTiers'),
-                    modalPhysicalTiers: document.getElementById('modalPhysicalTiers'),
-                    bulkCopyBar: document.getElementById('bulkCopyBar'),
-                    bulkCount: document.getElementById('bulkCount')
+                    modalPhysicalTiers: document.getElementById('modalPhysicalTiers')
                 };
                 this.bindEvents();
                 Store.load();
@@ -478,7 +497,6 @@
                     switch(action) {
                         case 'delete': this.animateRemove(id); break;
                         case 'copy': this.copyMessage(id, btn.dataset.lang); break;
-                        case 'copy-all': this.copyAllMessages(btn.dataset.lang); break;
                         case 'toggle-config': this.toggleConfig(id); break;
                         case 'add-tier': this.addTier(id, btn.dataset.tierType); break;
                         case 'remove-tier': this.removeTier(id, parseInt(btn.dataset.index), btn.dataset.tierType); break;
@@ -627,15 +645,6 @@
 
             render() {
                 const { projects } = Store;
-                // 更新批量复制栏可见性
-                if (this.elements.bulkCopyBar) {
-                    if (projects.length > 0) {
-                        this.elements.bulkCopyBar.classList.remove('hidden');
-                        this.elements.bulkCount.textContent = projects.length;
-                    } else {
-                        this.elements.bulkCopyBar.classList.add('hidden');
-                    }
-                }
                 if (projects.length === 0) {
                     this.elements.projectList.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-300 rounded-2xl bg-white/50"><p class="text-slate-500 text-lg">暂无项目，点击右上角添加</p></div>`;
                     return;
@@ -917,11 +926,11 @@
                 }
                 if (physicalTier) {
                     bonusLinesChinese += `
-🎁 ${physicalTier.name}：投资即送，价值 *RM${physicalTier.value}* 的 ${physicalTier.name} 🎉`;
+🎁 ${translateTierName(physicalTier.name, 'chinese')}：投资即送，价值 *RM${physicalTier.value}* 的 ${physicalTier.name} 🎉`;
                     bonusLinesEnglish += `
-🎁 ${physicalTier.name}: Receive a complimentary ${physicalTier.name} worth *RM${physicalTier.value}* 🎉`;
+🎁 ${translateTierName(physicalTier.name, 'english')}: Receive a complimentary ${physicalTier.name} worth *RM${physicalTier.value}* 🎉`;
                     bonusLinesMalay += `
-🎁 ${physicalTier.name}: Terima ${physicalTier.name} bernilai *RM${physicalTier.value}* secara percuma 🎉`;
+🎁 ${translateTierName(physicalTier.name, 'malay')}: Terima ${physicalTier.name} bernilai *RM${physicalTier.value}* secara percuma 🎉`;
                 }
 
                 const chinese = `🎉 恭喜您成功认购 *【${project.name}】* *${project.days}天*期项目！
@@ -969,15 +978,6 @@ Dana anda telah secara rasmi memasuki mod kecekapan tinggi, memulakan perjalanan
                 const langNames = { chinese: '中文 🇨🇳', english: 'English 🇬🇧', malay: 'Melayu 🇲🇾' };
                 this.copyToClipboard(messages[lang])
                     .then(() => this.showToast(`已复制 ${langNames[lang]} 话术`));
-            },
-
-            copyAllMessages(lang) {
-                if (!Store.projects.length) { this.showToast('暂无项目可复制'); return; }
-                const separator = { chinese: '\n\n━━━━━━━━━━━━━━\n\n', english: '\n\n━━━━━━━━━━━━━━\n\n', malay: '\n\n━━━━━━━━━━━━━━\n\n' };
-                const combined = Store.projects.map(p => this.generateMessages(p)[lang]).join(separator[lang]);
-                const langNames = { chinese: '中文 🇨🇳', english: 'English 🇬🇧', malay: 'Melayu 🇲🇾' };
-                this.copyToClipboard(combined)
-                    .then(() => this.showToast(`已复制全部 ${Store.projects.length} 个项目的 ${langNames[lang]} 话术`));
             },
 
             showToast(message) {
