@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RS财富增长计算器 | Investment Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        :root {
+            --color-bg: #f0f9ff; --color-surface: #ffffff; --color-primary: #0ea5e9;
+            --color-secondary: #10b981; --color-amber: #f59e0b; --color-orange: #f97316;
+            --color-text: #1e293b; --color-text-secondary: #64748b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0fdf4 100%);
+            color: var(--color-text); overflow-x: hidden; min-height: 100vh;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .glass {
+            background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.6);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+        }
+        .input-base {
+            width: 100%; border-radius: 0.5rem; padding: 0.75rem 1rem;
+            background-color: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; transition: all 0.2s;
+        }
+        .input-base:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.15); }
+        @keyframes gradient-x { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+        .animate-gradient { background-size: 200% 200%; animation: gradient-x 3s ease infinite; }
+        .card-enter { animation: slideIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+        @keyframes slideIn { from { opacity:0; transform: translateY(20px) scale(0.95); } to { opacity:1; transform: translateY(0) scale(1); } }
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600;
+            opacity: 0; transition: all 0.3s ease; z-index: 1000; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .save-indicator {
+            position: fixed; top: 20px; right: 20px; padding: 8px 16px; border-radius: 20px;
+            font-size: 12px; font-weight: 600; opacity: 0; transition: opacity 0.3s ease; z-index: 1000;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .save-indicator.show { opacity: 1; }
+        .save-indicator.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #059669; }
+        .save-indicator.loading { color: #d97706; border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.15); }
+        .bonus-section {
+            background: linear-gradient(135deg, rgba(254,243,199,0.6) 0%, rgba(254,215,170,0.3) 100%);
+            border: 1px solid rgba(251,191,36,0.3);
+        }
+        .bonus-tag { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .tier-active {
+            background: linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.15) 100%) !important;
+            border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
+        }
+        .tier-active-physical {
+            background: linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(234,88,12,0.15) 100%) !important;
+            border-color: #f97316 !important; box-shadow: 0 0 0 2px rgba(249,115,22,0.2);
+        }
+        .disabled-field { opacity: 0.5; pointer-events: none; }
+        .bg-blob { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.4; z-index: -1; animation: float 20s infinite ease-in-out; }
+        @keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(30px,-30px) scale(1.1); } 66% { transform: translate(-20px,20px) scale(0.9); } }
+        /* 复制工具栏样式 */
+        .copy-bar {
+            background: linear-gradient(135deg, rgba(241,245,249,0.9) 0%, rgba(224,242,254,0.9) 100%);
+            border: 1px solid rgba(14,165,233,0.25);
+        }
+        .copy-btn {
+            flex: 1; min-width: 88px; padding: 0.55rem 0.75rem; border-radius: 0.6rem;
+            font-weight: 700; font-size: 0.8rem; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .copy-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .copy-btn:active { transform: translateY(0); }
+        .copy-btn-cn { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+        .copy-btn-en { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
+        .copy-btn-my { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+        .copy-all-btn {
+            padding: 0.55rem 1rem; border-radius: 0.6rem; font-weight: 700; font-size: 0.8rem;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+        }
+        .copy-all-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.12); }
+        /* 配置区折叠 */
+        .tier-config { display: none; }
+        .tier-config.open { display: block; }
+        .config-toggle { cursor: pointer; user-select: none; }
+        .config-toggle .chev { transition: transform 0.25s ease; }
+        .config-toggle.open .chev { transform: rotate(180deg); }
+    </style>
+    <base target="_blank">
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4 relative">
+
+    <div class="bg-blob w-96 h-96 bg-sky-300 top-0 left-0"></div>
+    <div class="bg-blob w-80 h-80 bg-emerald-300 bottom-0 right-0" style="animation-delay:7s"></div>
+    <div class="bg-blob w-72 h-72 bg-amber-200 top-1/2 left-1/2" style="animation-delay:14s"></div>
+
+    <div id="saveIndicator" class="save-indicator success">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span>已自动保存</span>
+    </div>
+    <div id="toast" class="toast">已复制到剪贴板！</div>
+
+    <header class="w-full max-w-6xl mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-emerald-500 animate-gradient">RS财富增长计算器</h1>
+            <p class="text-slate-500 mt-2 text-sm md:text-base">自由配置投资周期 · 阶梯奖励 · 隐藏比例话术生成 · 一键批量复制 · 自动存储</p>
+        </div>
+        <div class="flex gap-3">
+            <button id="clearBtn" class="group relative px-4 py-3 font-bold text-slate-600 rounded-xl overflow-hidden bg-white border border-slate-200 hover:bg-slate-50 transition-all hover:scale-105 active:scale-95 shadow-sm">
+                <span class="relative flex items-center gap-2">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                    清空数据
+                </span>
+            </button>
+            <button id="addBtn" class="group relative px-6 py-3 font-bold text-white rounded-xl overflow-hidden bg-sky-500 shadow-lg shadow-sky-500/30 transition-all hover:scale-105 active:scale-95">
+                <span class="absolute w-0 h-0 transition-all duration-500 ease-out bg-white rounded-full group-hover:w-56 group-hover:h-56 opacity-20"></span>
+                <span class="relative flex items-center gap-2">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                    新建项目
+                </span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 一键批量复制栏 -->
+    <div id="bulkCopyBar" class="w-full max-w-6xl mb-6 hidden">
+        <div class="glass rounded-2xl px-5 py-4 flex flex-col md:flex-row items-center gap-3 md:gap-4 shadow-lg border border-sky-200/60">
+            <div class="flex items-center gap-2 md:mr-auto">
+                <svg class="h-5 w-5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2v-1m2-11h2a2 2 0 012 2v12a2 2 0 01-2 2h-2m-4-9v8m-4-5h8"/></svg>
+                <span class="text-sm font-bold text-slate-700">一键复制全部项目话术（<span id="bulkCount">0</span> 个项目）</span>
+            </div>
+            <div class="flex gap-2 flex-wrap justify-center">
+                <button data-action="copy-all" data-lang="chinese" class="copy-all-btn copy-btn-cn">🇨🇳 复制全部(中文)</button>
+                <button data-action="copy-all" data-lang="english" class="copy-all-btn copy-btn-en">🇬🇧 Copy All (EN)</button>
+                <button data-action="copy-all" data-lang="malay" class="copy-all-btn copy-btn-my">🇲🇾 Salin Semua (MY)</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-4" id="projectList"></div>
+        <div class="lg:col-span-1 space-y-6">
+            <div class="glass rounded-2xl p-6 sticky top-6 shadow-xl border border-white/60">
+                <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <svg class="h-6 w-6 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    总览统计
+                </h2>
+                <div class="space-y-4">
+                    <div class="bg-white/80 p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">总投资本金</p>
+                        <p class="text-2xl font-bold text-slate-800 mono mt-1" id="totalPrincipal">RM0.00</p>
+                    </div>
+                    <div class="bg-white/80 p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute right-0 top-0 p-4 opacity-10">
+                            <svg class="h-16 w-16 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/></svg>
+                        </div>
+                        <p class="text-xs text-emerald-600 uppercase tracking-wider font-semibold">预计总收益</p>
+                        <p class="text-3xl font-extrabold text-emerald-500 mono mt-1" id="totalProfit">RM0.00</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute right-0 top-0 p-3 opacity-10">
+                            <svg class="h-14 w-14 text-amber-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 8a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clip-rule="evenodd"/></svg>
+                        </div>
+                        <p class="text-xs text-amber-600 uppercase tracking-wider font-semibold flex items-center gap-1">
+                            <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 8a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clip-rule="evenodd"/></svg>
+                            额外奖励总额
+                        </p>
+                        <div class="mt-2 space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-amber-700">阶梯百分比奖励</span>
+                                <span id="totalPercentBonus" class="text-lg font-bold text-amber-600 mono">RM0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-orange-700">阶梯实物奖励价值</span>
+                                <span id="totalPhysicalBonus" class="text-lg font-bold text-orange-500 mono">RM0.00</span>
+                            </div>
+                            <div class="h-px bg-amber-200 my-2"></div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-amber-800 font-semibold">奖励合计</span>
+                                <span id="totalBonus" class="text-xl font-bold text-amber-600 mono">RM0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white/80 p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">资金利用率 (总天数)</p>
+                        <div class="flex justify-between items-end mt-1">
+                            <p class="text-xl font-bold text-slate-800 mono" id="totalDays">0 天</p>
+                            <span class="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600" id="avgRate">Avg 0%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-1.5 mt-3 rounded-full overflow-hidden">
+                            <div id="progressBar" class="bg-gradient-to-r from-sky-500 to-emerald-500 h-full rounded-full transition-all duration-500" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 pt-6 border-t border-slate-200">
+                    <div class="flex items-center justify-between text-xs text-slate-400">
+                        <span>数据状态</span>
+                        <span id="lastSaved">从未保存</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass rounded-2xl p-8 w-full max-w-lg border border-white/60 shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="modalContent" style="max-height:90vh;overflow-y:auto;">
+            <h3 class="text-2xl font-bold text-slate-800 mb-6">创建新项目</h3>
+            <form id="projectForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-600 mb-2 font-medium">项目名称 <span class="text-sky-500">*</span></label>
+                    <input type="text" name="name" placeholder="例如：PROJEK 250 HARI" class="input-base" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-600 mb-2 font-medium">投资天数 <span class="text-sky-500">*</span></label>
+                        <input type="number" name="days" value="250" min="1" class="input-base" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-600 mb-2 font-medium">日利率 (%) <span class="text-sky-500">*</span></label>
+                        <input type="number" name="percent" value="5" step="0.1" min="0" class="input-base" required>
+                    </div>
+                </div>
+                <div class="border-t border-slate-200 pt-4 mt-4">
+                    <p class="text-sm font-semibold text-amber-600 mb-3 flex items-center gap-2">
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 8a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clip-rule="evenodd"/></svg>
+                        阶梯百分比奖励 (现金返还)
+                    </p>
+                    <label class="flex items-center gap-2 mb-3 cursor-pointer">
+                        <input type="checkbox" name="enablePercentBonus" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500/20">
+                        <span class="text-sm text-amber-700 font-medium">启用阶梯百分比奖励</span>
+                    </label>
+                    <div id="modalPercentTiers" class="space-y-2 disabled-field opacity-50 pointer-events-none transition-opacity">
+                        <div class="text-xs text-slate-500 mb-1">预设档位（可修改）：</div>
+                        <div class="grid grid-cols-12 gap-2 items-center bg-amber-50/50 p-2 rounded-lg border border-amber-200">
+                            <div class="col-span-4"><label class="block text-[10px] text-slate-500 mb-0.5">门槛 (RM)</label><input type="number" name="pbTierThreshold0" value="500" step="100" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-4"><label class="block text-[10px] text-slate-500 mb-0.5">奖励名称</label><input type="text" name="pbTierName0" value="现金奖励 5%" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-3"><label class="block text-[10px] text-slate-500 mb-0.5">比例 (%)</label><input type="number" name="pbTierPercent0" value="5" step="0.1" class="input-base text-sm py-1.5 mono"></div>
+                            <div class="col-span-1 text-center pt-4 text-xs text-amber-600">%</div>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2 items-center bg-amber-50/50 p-2 rounded-lg border border-amber-200">
+                            <div class="col-span-4"><input type="number" name="pbTierThreshold1" value="2000" step="100" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-4"><input type="text" name="pbTierName1" value="现金奖励 7%" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-3"><input type="number" name="pbTierPercent1" value="7" step="0.1" class="input-base text-sm py-1.5 mono"></div>
+                            <div class="col-span-1 text-center text-xs text-amber-600">%</div>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2 items-center bg-amber-50/50 p-2 rounded-lg border border-amber-200">
+                            <div class="col-span-4"><input type="number" name="pbTierThreshold2" value="5000" step="100" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-4"><input type="text" name="pbTierName2" value="现金奖励 10%" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-3"><input type="number" name="pbTierPercent2" value="10" step="0.1" class="input-base text-sm py-1.5 mono"></div>
+                            <div class="col-span-1 text-center text-xs text-amber-600">%</div>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2 items-center bg-amber-50/50 p-2 rounded-lg border border-amber-200">
+                            <div class="col-span-4"><input type="number" name="pbTierThreshold3" value="10000" step="100" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-4"><input type="text" name="pbTierName3" value="现金奖励 15%" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-3"><input type="number" name="pbTierPercent3" value="15" step="0.1" class="input-base text-sm py-1.5 mono"></div>
+                            <div class="col-span-1 text-center text-xs text-amber-600">%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t border-slate-200 pt-4 mt-4">
+                    <p class="text-sm font-semibold text-orange-600 mb-3 flex items-center gap-2">
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 001-.994l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"/></svg>
+                        阶梯实物奖励 (赠送礼品)
+                    </p>
+                    <label class="flex items-center gap-2 mb-3 cursor-pointer">
+                        <input type="checkbox" name="enablePhysicalBonus" class="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500/20">
+                        <span class="text-sm text-orange-700 font-medium">启用阶梯实物奖励</span>
+                    </label>
+                    <div id="modalPhysicalTiers" class="space-y-2 disabled-field opacity-50 pointer-events-none transition-opacity">
+                        <div class="text-xs text-slate-500 mb-1">预设档位（可修改）：</div>
+                        <div class="grid grid-cols-12 gap-2 items-center bg-orange-50/50 p-2 rounded-lg border border-orange-200">
+                            <div class="col-span-4"><label class="block text-[10px] text-slate-500 mb-0.5">门槛 (RM)</label><input type="number" name="phTierThreshold0" value="1000" step="100" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-4"><label class="block text-[10px] text-slate-500 mb-0.5">奖励名称</label><input type="text" name="phTierName0" value="充电宝" class="input-base text-sm py-1.5"></div>
+                            <div class="col-span-3"><label class="block text-[10px] text-slate-500 mb-0.5">价值 (RM)</label><input type="number" name="phTierValue0" value="50" step="1" class="input-base text-sm py-1.5 mono"></div>
+                            <div class="col-span-1 text-center pt-4 text-xs text-orange-600">RM</div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    创建后可在卡片中手动输入投资金额，系统自动匹配对应奖励档位
+                </p>
+            </form>
+            <div class="flex gap-3 mt-8">
+                <button type="button" id="cancelBtn" class="flex-1 py-3 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors font-medium">取消</button>
+                <button type="submit" form="projectForm" class="flex-1 py-3 rounded-lg bg-sky-500 text-white font-bold hover:bg-sky-600 transition-colors shadow-lg shadow-sky-500/25">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            STORAGE_KEY: 'rs_calculator_projects_v5_fix',
+            SAVE_DELAY: 500,
+            MAX_DAYS_VISUAL: 100,
+            CURRENCY: 'RM'
+        };
+
+        const Store = {
+            projects: [],
+            saveTimeout: null,
+
+            get totals() {
+                return this.projects.reduce((acc, p) => {
+                    const daily = p.amount * (p.percent / 100);
+                    const profit = daily * p.days;
+                    const percentTier = this.getActivePercentTier(p);
+                    const percentBonus = (percentTier && p.percentBonusEnabled) ? p.amount * (percentTier.percent / 100) : 0;
+                    const physicalBonus = this.calculatePhysicalBonus(p);
+                    acc.principal += p.amount;
+                    acc.profit += profit;
+                    acc.days += p.days;
+                    acc.percentBonus += percentBonus;
+                    acc.physicalBonus += physicalBonus;
+                    acc.rateSum += p.percent;
+                    return acc;
+                }, { principal: 0, profit: 0, days: 0, percentBonus: 0, physicalBonus: 0, rateSum: 0 });
+            },
+
+            getActivePercentTier(project) {
+                if (!project.percentBonusEnabled || !project.percentBonusTiers?.length) return null;
+                const sorted = [...project.percentBonusTiers].sort((a, b) => b.threshold - a.threshold);
+                return sorted.find(t => project.amount >= t.threshold && t.name) || null;
+            },
+
+            calculatePhysicalBonus(project) {
+                if (!project.physicalBonusTiers?.length) return 0;
+                const sorted = [...project.physicalBonusTiers].sort((a, b) => b.threshold - a.threshold);
+                const tier = sorted.find(t => project.amount >= t.threshold && t.name);
+                return tier ? tier.value : 0;
+            },
+
+            getActivePhysicalTier(project) {
+                if (!project.physicalBonusTiers?.length) return null;
+                const sorted = [...project.physicalBonusTiers].sort((a, b) => b.threshold - a.threshold);
+                return sorted.find(t => project.amount >= t.threshold && t.name) || null;
+            },
+
+            calculateProjectTotals(project) {
+                const daily = project.amount * (project.percent / 100);
+                const baseReturn = project.amount + (daily * project.days);
+                const percentTier = this.getActivePercentTier(project);
+                const percentBonus = percentTier ? project.amount * (percentTier.percent / 100) : 0;
+                const physicalTier = this.getActivePhysicalTier(project);
+                const physicalBonus = physicalTier ? physicalTier.value : 0;
+                return { daily, baseReturn, percentBonus, physicalBonus, percentTier, physicalTier, total: baseReturn + percentBonus + physicalBonus };
+            },
+
+            add(project) {
+                this.projects.push({ ...project, id: Date.now() + Math.random() });
+                this.persist();
+            },
+
+            remove(id) {
+                const idx = this.projects.findIndex(p => p.id === id);
+                if (idx > -1) { this.projects.splice(idx, 1); this.persist(); return true; }
+                return false;
+            },
+
+            update(id, updates) {
+                const project = this.projects.find(p => p.id === id);
+                if (project) { Object.assign(project, updates); this.persist(); return project; }
+                return null;
+            },
+
+            persist() {
+                clearTimeout(this.saveTimeout);
+                UI.showSaveStatus('loading');
+                this.saveTimeout = setTimeout(() => {
+                    try {
+                        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(this.projects));
+                        UI.showSaveStatus('success');
+                    } catch (e) {
+                        console.error('Save failed:', e);
+                        UI.showToast('保存失败，请检查浏览器存储权限');
+                    }
+                }, CONFIG.SAVE_DELAY);
+            },
+
+            load() {
+                try {
+                    const data = localStorage.getItem(CONFIG.STORAGE_KEY);
+                    if (data) { this.projects = this.migrate(JSON.parse(data)); return true; }
+                } catch (e) { console.error('Load failed:', e); }
+                return false;
+            },
+
+            migrate(projects) {
+                return projects.map(p => {
+                    const migrated = { ...p };
+                    if (!migrated.physicalBonusTiers && migrated.physicalBonus?.enabled) {
+                        migrated.physicalBonusTiers = [{ threshold: migrated.amount || 1000, name: migrated.physicalBonus.name || '实物奖励', value: migrated.physicalBonus.value || 0 }];
+                    }
+                    migrated.physicalBonusTiers = migrated.physicalBonusTiers || [];
+                    if (!migrated.percentBonusTiers && migrated.percentBonus) {
+                        migrated.percentBonusEnabled = migrated.percentBonus.enabled || false;
+                        if (migrated.percentBonus.enabled) {
+                            migrated.percentBonusTiers = [{ threshold: migrated.amount || 1000, name: migrated.percentBonus.name || '活动奖金', percent: migrated.percentBonus.percent || 0 }];
+                        } else {
+                            migrated.percentBonusTiers = [];
+                        }
+                    }
+                    migrated.percentBonusTiers = migrated.percentBonusTiers || [];
+                    return migrated;
+                });
+            },
+
+            clear() { this.projects = []; localStorage.removeItem(CONFIG.STORAGE_KEY); }
+        };
+
+        const UI = {
+            elements: {},
+
+            init() {
+                this.elements = {
+                    projectList: document.getElementById('projectList'),
+                    totalPrincipal: document.getElementById('totalPrincipal'),
+                    totalProfit: document.getElementById('totalProfit'),
+                    totalPercentBonus: document.getElementById('totalPercentBonus'),
+                    totalPhysicalBonus: document.getElementById('totalPhysicalBonus'),
+                    totalBonus: document.getElementById('totalBonus'),
+                    totalDays: document.getElementById('totalDays'),
+                    avgRate: document.getElementById('avgRate'),
+                    progressBar: document.getElementById('progressBar'),
+                    modal: document.getElementById('modal'),
+                    modalContent: document.getElementById('modalContent'),
+                    toast: document.getElementById('toast'),
+                    saveIndicator: document.getElementById('saveIndicator'),
+                    lastSaved: document.getElementById('lastSaved'),
+                    modalPercentTiers: document.getElementById('modalPercentTiers'),
+                    modalPhysicalTiers: document.getElementById('modalPhysicalTiers'),
+                    bulkCopyBar: document.getElementById('bulkCopyBar'),
+                    bulkCount: document.getElementById('bulkCount')
+                };
+                this.bindEvents();
+                Store.load();
+                this.render();
+                this.updateSummary();
+            },
+
+            bindEvents() {
+                document.getElementById('addBtn').addEventListener('click', () => this.openModal());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearAll());
+                document.getElementById('cancelBtn').addEventListener('click', () => this.closeModal());
+                document.getElementById('projectForm').addEventListener('submit', (e) => this.handleCreate(e));
+
+                document.querySelector('input[name="enablePercentBonus"]').addEventListener('change', (e) => {
+                    const el = this.elements.modalPercentTiers;
+                    el.classList.toggle('disabled-field', !e.target.checked);
+                    el.classList.toggle('opacity-50', !e.target.checked);
+                    el.classList.toggle('pointer-events-none', !e.target.checked);
+                });
+                document.querySelector('input[name="enablePhysicalBonus"]').addEventListener('change', (e) => {
+                    const el = this.elements.modalPhysicalTiers;
+                    el.classList.toggle('disabled-field', !e.target.checked);
+                    el.classList.toggle('opacity-50', !e.target.checked);
+                    el.classList.toggle('pointer-events-none', !e.target.checked);
+                });
+
+                this.elements.modal.addEventListener('click', (e) => { if (e.target === this.elements.modal) this.closeModal(); });
+                document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !this.elements.modal.classList.contains('hidden')) this.closeModal(); });
+
+                this.elements.projectList.addEventListener('click', (e) => {
+                    const btn = e.target.closest('[data-action]');
+                    if (!btn) return;
+                    const action = btn.dataset.action;
+                    const id = parseFloat(btn.dataset.id);
+                    switch(action) {
+                        case 'delete': this.animateRemove(id); break;
+                        case 'copy': this.copyMessage(id, btn.dataset.lang); break;
+                        case 'copy-all': this.copyAllMessages(btn.dataset.lang); break;
+                        case 'toggle-config': this.toggleConfig(id); break;
+                        case 'add-tier': this.addTier(id, btn.dataset.tierType); break;
+                        case 'remove-tier': this.removeTier(id, parseInt(btn.dataset.index), btn.dataset.tierType); break;
+                    }
+                });
+
+                // Input event - real-time update without re-rendering
+                this.elements.projectList.addEventListener('input', (e) => {
+                    const input = e.target.closest('[data-field]');
+                    if (!input) return;
+                    const id = parseFloat(input.dataset.id);
+                    const field = input.dataset.field;
+                    let value = input.type === 'checkbox' ? input.checked : input.value;
+                    if (input.type === 'number') value = parseFloat(value) || 0;
+                    this.updateProjectRealtime(id, field, value);
+                });
+
+                // Blur event - re-render to update tier highlighting
+                this.elements.projectList.addEventListener('blur', (e) => {
+                    const input = e.target.closest('[data-field]');
+                    if (!input) return;
+                    const id = parseFloat(input.dataset.id);
+                    const field = input.dataset.field;
+                    if (field === 'amount' || field === 'days' || field === 'percent') {
+                        this.render();
+                        this.updateSummary();
+                    }
+                }, true);
+            },
+
+            toggleConfig(id) {
+                const card = document.getElementById(`card-${id}`);
+                if (!card) return;
+                const panel = card.querySelector('.tier-config');
+                const toggle = card.querySelector('.config-toggle');
+                if (panel) panel.classList.toggle('open');
+                if (toggle) toggle.classList.toggle('open');
+            },
+
+            openModal() {
+                this.elements.modal.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    this.elements.modalContent.classList.remove('scale-95', 'opacity-0');
+                    this.elements.modalContent.classList.add('scale-100', 'opacity-100');
+                });
+                document.querySelector('input[name="name"]').focus();
+            },
+
+            closeModal() {
+                this.elements.modalContent.classList.remove('scale-100', 'opacity-100');
+                this.elements.modalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    this.elements.modal.classList.add('hidden');
+                    document.getElementById('projectForm').reset();
+                    this.elements.modalPercentTiers.classList.add('disabled-field', 'opacity-50', 'pointer-events-none');
+                    this.elements.modalPhysicalTiers.classList.add('disabled-field', 'opacity-50', 'pointer-events-none');
+                }, 300);
+            },
+
+            handleCreate(e) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                const project = {
+                    name: formData.get('name').trim(),
+                    days: parseInt(formData.get('days')) || 1,
+                    percent: parseFloat(formData.get('percent')) || 0,
+                    amount: 0,
+                    percentBonusEnabled: formData.get('enablePercentBonus') === 'on',
+                    percentBonusTiers: formData.get('enablePercentBonus') === 'on' ? [
+                        { threshold: parseFloat(formData.get('pbTierThreshold0')) || 0, name: formData.get('pbTierName0') || '', percent: parseFloat(formData.get('pbTierPercent0')) || 0 },
+                        { threshold: parseFloat(formData.get('pbTierThreshold1')) || 0, name: formData.get('pbTierName1') || '', percent: parseFloat(formData.get('pbTierPercent1')) || 0 },
+                        { threshold: parseFloat(formData.get('pbTierThreshold2')) || 0, name: formData.get('pbTierName2') || '', percent: parseFloat(formData.get('pbTierPercent2')) || 0 },
+                        { threshold: parseFloat(formData.get('pbTierThreshold3')) || 0, name: formData.get('pbTierName3') || '', percent: parseFloat(formData.get('pbTierPercent3')) || 0 }
+                    ].filter(t => t.threshold > 0 && t.name) : [],
+                    physicalBonusTiers: formData.get('enablePhysicalBonus') === 'on' ? [
+                        { threshold: parseFloat(formData.get('phTierThreshold0')) || 0, name: formData.get('phTierName0') || '', value: parseFloat(formData.get('phTierValue0')) || 0 }
+                    ].filter(t => t.threshold > 0 && t.name) : []
+                };
+                Store.add(project);
+                this.closeModal();
+                this.render();
+                this.updateSummary();
+                setTimeout(() => {
+                    const inputs = this.elements.projectList.querySelectorAll('input[data-field="amount"]');
+                    const lastInput = inputs[inputs.length - 1];
+                    if (lastInput) { lastInput.focus(); lastInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                }, 100);
+            },
+
+            animateRemove(id) {
+                const card = document.getElementById(`card-${id}`);
+                if (!card) return;
+                gsap.to(card, {
+                    opacity: 0, x: -50, height: 0, marginBottom: 0, padding: 0, duration: 0.4, ease: "power2.in",
+                    onComplete: () => { Store.remove(id); this.render(); this.updateSummary(); }
+                });
+            },
+
+            // Real-time update: updates store + DOM numbers, NO re-render (fixes input refresh bug)
+            updateProjectRealtime(id, field, value) {
+                const project = Store.projects.find(p => p.id === id);
+                if (!project) return;
+
+                if (field.startsWith('pb_tier_')) {
+                    const parts = field.split('_');
+                    const idx = parseInt(parts[2]);
+                    const subfield = parts[3];
+                    if (!project.percentBonusTiers[idx]) project.percentBonusTiers[idx] = { threshold: 0, name: '', percent: 0 };
+                    project.percentBonusTiers[idx][subfield] = subfield === 'name' ? value : (parseFloat(value) || 0);
+                } else if (field.startsWith('tier_')) {
+                    const parts = field.split('_');
+                    const idx = parseInt(parts[1]);
+                    const subfield = parts[2];
+                    if (!project.physicalBonusTiers[idx]) project.physicalBonusTiers[idx] = { threshold: 0, name: '', value: 0 };
+                    project.physicalBonusTiers[idx][subfield] = subfield === 'name' ? value : (parseFloat(value) || 0);
+                } else if (field === 'percentBonusEnabled') {
+                    project.percentBonusEnabled = value;
+                } else {
+                    project[field] = value;
+                }
+
+                Store.persist();
+                this.updateCardNumbers(id);
+                this.updateSummary();
+            },
+
+            addTier(id, tierType) {
+                const project = Store.projects.find(p => p.id === id);
+                if (!project) return;
+                if (tierType === 'percent') project.percentBonusTiers.push({ threshold: 0, name: '', percent: 0 });
+                else project.physicalBonusTiers.push({ threshold: 0, name: '', value: 0 });
+                Store.persist();
+                this.render();
+            },
+
+            removeTier(id, index, tierType) {
+                const project = Store.projects.find(p => p.id === id);
+                if (!project) return;
+                if (tierType === 'percent' && project.percentBonusTiers[index]) project.percentBonusTiers.splice(index, 1);
+                else if (tierType === 'physical' && project.physicalBonusTiers[index]) project.physicalBonusTiers.splice(index, 1);
+                Store.persist();
+                this.render();
+                this.updateSummary();
+            },
+
+            render() {
+                const { projects } = Store;
+                // 更新批量复制栏可见性
+                if (this.elements.bulkCopyBar) {
+                    if (projects.length > 0) {
+                        this.elements.bulkCopyBar.classList.remove('hidden');
+                        this.elements.bulkCount.textContent = projects.length;
+                    } else {
+                        this.elements.bulkCopyBar.classList.add('hidden');
+                    }
+                }
+                if (projects.length === 0) {
+                    this.elements.projectList.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-300 rounded-2xl bg-white/50"><p class="text-slate-500 text-lg">暂无项目，点击右上角添加</p></div>`;
+                    return;
+                }
+                this.elements.projectList.innerHTML = projects.map(p => this.renderProjectCard(p)).join('');
+            },
+
+            renderProjectCard(p) {
+                const totals = Store.calculateProjectTotals(p);
+
+                const percentTiersHtml = p.percentBonusTiers?.length > 0 ? p.percentBonusTiers.map((tier, idx) => {
+                    const isActive = totals.percentTier && totals.percentTier.threshold === tier.threshold && p.amount >= tier.threshold;
+                    return `
+                    <div class="pb-tier-row grid grid-cols-12 gap-2 items-center p-2 rounded border transition-all ${isActive ? 'tier-active' : 'bg-white/80 border-amber-200 shadow-sm'}" data-tier-type="percent" data-tier-idx="${idx}">
+                        <div class="col-span-3">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">门槛 (RM)</label>
+                            <input type="number" step="100" value="${tier.threshold}" data-id="${p.id}" data-field="pb_tier_${idx}_threshold"
+                                class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-colors mono">
+                        </div>
+                        <div class="col-span-4">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">奖励名称</label>
+                            <input type="text" value="${tier.name}" placeholder="如：现金奖励" data-id="${p.id}" data-field="pb_tier_${idx}_name"
+                                class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-colors">
+                        </div>
+                        <div class="col-span-3">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">比例 (%)</label>
+                            <input type="number" step="0.1" value="${tier.percent}" data-id="${p.id}" data-field="pb_tier_${idx}_percent"
+                                class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-colors mono">
+                        </div>
+                        <div class="col-span-2 flex items-end justify-end gap-1">
+                            <span class="tier-match-label text-[10px] font-bold ${isActive ? 'text-emerald-600' : 'text-transparent'}">${isActive ? '已匹配' : ''}</span>
+                            <button data-action="remove-tier" data-tier-type="percent" data-id="${p.id}" data-index="${idx}"
+                                class="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors" title="删除档位">
+                                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('') : '<div class="text-xs text-slate-500 text-center py-2">暂无阶梯奖励，点击"添加档位"创建</div>';
+
+                const physicalTiersHtml = p.physicalBonusTiers?.map((tier, idx) => {
+                    const isActive = totals.physicalTier && totals.physicalTier.threshold === tier.threshold && p.amount >= tier.threshold;
+                    return `
+                    <div class="ph-tier-row grid grid-cols-12 gap-2 items-center p-2 rounded border transition-all ${isActive ? 'tier-active-physical' : 'bg-white/80 border-orange-200 shadow-sm'}" data-tier-type="physical" data-tier-idx="${idx}">
+                        <div class="col-span-3">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">门槛 (RM)</label>
+                            <input type="number" step="100" value="${tier.threshold}" data-id="${p.id}" data-field="tier_${idx}_threshold"
+                                class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-colors mono">
+                        </div>
+                        <div class="col-span-4">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">奖励名称</label>
+                            <input type="text" value="${tier.name}" placeholder="如：充电宝" data-id="${p.id}" data-field="tier_${idx}_name"
+                                class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-colors">
+                        </div>
+                        <div class="col-span-3">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">价值 (RM)</label>
+                            <input type="number" step="1" value="${tier.value}" data-id="${p.id}" data-field="tier_${idx}_value"
+                                class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-colors mono">
+                        </div>
+                        <div class="col-span-2 flex items-end justify-end gap-1">
+                            <span class="tier-match-label text-[10px] font-bold ${isActive ? 'text-orange-600' : 'text-transparent'}">${isActive ? '已匹配' : ''}</span>
+                            <button data-action="remove-tier" data-tier-type="physical" data-id="${p.id}" data-index="${idx}"
+                                class="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors" title="删除档位">
+                                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('') || '<div class="text-xs text-slate-500 text-center py-2">暂无阶梯奖励，点击"添加档位"创建</div>';
+
+                const showPercent = p.percentBonusEnabled && totals.percentTier;
+                const showPhysical = !!totals.physicalTier;
+                const physicalNeedsBorder = showPhysical && !showPercent;
+
+                return `
+                    <div id="card-${p.id}" class="glass rounded-2xl p-5 md:p-6 card-enter relative group border border-white/60 hover:border-sky-300 transition-all shadow-lg hover:shadow-xl">
+                        <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button data-action="delete" data-id="${p.id}" class="text-slate-400 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50 transition-colors" title="删除项目">
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="mb-4 pr-8">
+                            <label class="block text-xs text-slate-500 mb-1 font-medium">项目名称</label>
+                            <input type="text" value="${p.name}" data-id="${p.id}" data-field="name"
+                                class="w-full bg-transparent text-xl font-bold text-slate-800 focus:outline-none border-b border-transparent hover:border-slate-300 focus:border-sky-500 transition-colors pb-1">
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                            <div class="md:col-span-7 space-y-4">
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div class="bg-white/80 p-3 rounded-lg border border-slate-200 shadow-sm">
+                                        <label class="block text-xs text-slate-500 mb-1 font-medium">周期(天)</label>
+                                        <input type="number" value="${p.days}" data-id="${p.id}" data-field="days"
+                                            class="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-slate-800 font-bold text-lg focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition-all mono" min="1">
+                                    </div>
+                                    <div class="bg-white/80 p-3 rounded-lg border border-slate-200 shadow-sm">
+                                        <label class="block text-xs text-slate-500 mb-1 font-medium">日利率(%)</label>
+                                        <input type="number" step="0.01" value="${p.percent}" data-id="${p.id}" data-field="percent"
+                                            class="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-sky-600 font-bold text-lg focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition-all mono" min="0">
+                                    </div>
+                                    <div class="bg-white/80 p-3 rounded-lg border border-sky-200 shadow-sm ring-2 ring-sky-100">
+                                        <label class="block text-xs text-sky-600 mb-1 font-semibold">投入金额(RM)</label>
+                                        <input type="number" value="${p.amount || ''}" placeholder="0" data-id="${p.id}" data-field="amount"
+                                            class="w-full bg-white border border-slate-300 rounded px-2 py-1.5 text-slate-800 font-bold text-lg focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition-all mono placeholder-slate-400" min="0">
+                                    </div>
+                                </div>
+
+                                <div class="bonus-section rounded-lg p-3 shadow-sm">
+                                    <div class="config-toggle flex items-center justify-between" data-action="toggle-config" data-id="${p.id}">
+                                        <div class="flex items-center gap-2">
+                                            <span class="bonus-tag text-white text-xs px-2 py-0.5 rounded font-bold shadow-sm">奖励</span>
+                                            <span class="text-xs text-amber-700 font-medium">阶梯奖励配置（点击展开 / 收起）</span>
+                                        </div>
+                                        <svg class="chev h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+
+                                    <div class="tier-config space-y-3 pt-3">
+                                        <div class="space-y-2">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-amber-700 font-medium flex items-center gap-1">
+                                                    <svg class="h-3 w-3 text-amber-500" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a1 1 0 100-2 1 1 0 000 2z"/></svg>
+                                                    阶梯百分比奖励 (达到投资金额返现金)
+                                                </span>
+                                                <button data-action="add-tier" data-tier-type="percent" data-id="${p.id}"
+                                                    class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded transition-colors flex items-center gap-1 font-medium shadow-sm">
+                                                    <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                                                    添加档位
+                                                </button>
+                                            </div>
+                                            ${percentTiersHtml}
+                                        </div>
+
+                                        <div class="space-y-2 pt-2 border-t border-amber-200/50">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-orange-700 font-medium flex items-center gap-1">
+                                                    <svg class="h-3 w-3 text-orange-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 001-.994l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"/></svg>
+                                                    阶梯实物奖励 (达到投资金额送礼品)
+                                                </span>
+                                                <button data-action="add-tier" data-tier-type="physical" data-id="${p.id}"
+                                                    class="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded transition-colors flex items-center gap-1 font-medium shadow-sm">
+                                                    <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                                                    添加档位
+                                                </button>
+                                            </div>
+                                            ${physicalTiersHtml}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-5 flex flex-col gap-2 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-emerald-600 font-medium">每日收益</span>
+                                    <span class="display-daily text-lg font-bold text-emerald-600 mono">RM${totals.daily.toFixed(2)}</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-slate-500 font-medium">到期基础总额</span>
+                                    <span class="display-base text-sm font-bold text-slate-600 mono">RM${totals.baseReturn.toFixed(2)}</span>
+                                </div>
+
+                                <div class="display-percent-row ${showPercent ? '' : 'hidden'} border-t border-emerald-200/50 pt-2 mt-1">
+                                    <div class="flex justify-between items-center">
+                                        <span class="display-percent-name text-xs text-amber-600 font-medium">${showPercent ? '额外现金奖励' : ''}</span>
+                                        <span class="display-percent-value text-sm font-bold text-amber-600 mono">${showPercent ? '+' + 'RM' + totals.percentBonus.toFixed(2) : ''}</span>
+                                    </div>
+                                </div>
+
+                                <div class="display-physical-row ${showPhysical ? '' : 'hidden'} ${physicalNeedsBorder ? 'border-t border-emerald-200/50 pt-2 mt-1' : ''}">
+                                    <div class="flex justify-between items-center">
+                                        <span class="display-physical-name text-xs text-orange-600 font-medium">${showPhysical ? totals.physicalTier.name : ''}</span>
+                                        <span class="display-physical-value text-sm font-bold text-orange-600 mono">${showPhysical ? '+' + 'RM' + totals.physicalBonus.toFixed(2) : ''}</span>
+                                    </div>
+                                </div>
+
+                                <div class="h-px bg-emerald-200/50 my-1"></div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-slate-800 font-semibold">总回报</span>
+                                    <span class="display-total text-2xl font-bold text-slate-800 mono">RM${totals.total.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="copy-bar mt-4 p-3 rounded-xl flex gap-2 items-center flex-wrap">
+                            <span class="text-xs text-slate-600 font-bold flex items-center gap-1 mr-1">
+                                <svg class="h-3.5 w-3.5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2v-1m2-11h2a2 2 0 012 2v12a2 2 0 01-2 2h-2m-4-9v8m-4-5h8"/></svg>
+                                复制话术：
+                            </span>
+                            <button data-action="copy" data-id="${p.id}" data-lang="chinese" class="copy-btn copy-btn-cn">🇨🇳 中文</button>
+                            <button data-action="copy" data-id="${p.id}" data-lang="english" class="copy-btn copy-btn-en">🇬🇧 English</button>
+                            <button data-action="copy" data-id="${p.id}" data-lang="malay" class="copy-btn copy-btn-my">🇲🇾 Melayu</button>
+                        </div>
+                    </div>
+                `;
+            },
+
+            // Update only numbers and visibility, NO re-render (fixes the input refresh bug)
+            updateCardNumbers(id) {
+                const project = Store.projects.find(p => p.id === id);
+                if (!project) return;
+                const totals = Store.calculateProjectTotals(project);
+                const card = document.getElementById(`card-${id}`);
+                if (!card) return;
+
+                const dailyEl = card.querySelector('.display-daily');
+                if (dailyEl) dailyEl.textContent = `RM${totals.daily.toFixed(2)}`;
+                const baseEl = card.querySelector('.display-base');
+                if (baseEl) baseEl.textContent = `RM${totals.baseReturn.toFixed(2)}`;
+                const totalEl = card.querySelector('.display-total');
+                if (totalEl) totalEl.textContent = `RM${totals.total.toFixed(2)}`;
+
+                const percentRow = card.querySelector('.display-percent-row');
+                if (percentRow) {
+                    if (project.percentBonusEnabled && totals.percentTier) {
+                        percentRow.classList.remove('hidden');
+                        card.querySelector('.display-percent-name').textContent = '额外现金奖励';
+                        card.querySelector('.display-percent-value').textContent = `+RM${totals.percentBonus.toFixed(2)}`;
+                    } else {
+                        percentRow.classList.add('hidden');
+                    }
+                }
+
+                const physicalRow = card.querySelector('.display-physical-row');
+                if (physicalRow) {
+                    if (totals.physicalTier) {
+                        physicalRow.classList.remove('hidden');
+                        if (!project.percentBonusEnabled || !totals.percentTier) {
+                            physicalRow.classList.add('border-t', 'border-emerald-200/50', 'pt-2', 'mt-1');
+                        } else {
+                            physicalRow.classList.remove('border-t', 'border-emerald-200/50', 'pt-2', 'mt-1');
+                        }
+                        card.querySelector('.display-physical-name').textContent = totals.physicalTier.name;
+                        card.querySelector('.display-physical-value').textContent = `+RM${totals.physicalBonus.toFixed(2)}`;
+                    } else {
+                        physicalRow.classList.add('hidden');
+                    }
+                }
+            },
+
+            updateSummary() {
+                const t = Store.totals;
+                const avgRate = Store.projects.length ? (t.rateSum / Store.projects.length).toFixed(2) : 0;
+                this.animateValue(this.elements.totalPrincipal, t.principal);
+                this.animateValue(this.elements.totalProfit, t.profit);
+                this.animateValue(this.elements.totalPercentBonus, t.percentBonus);
+                this.animateValue(this.elements.totalPhysicalBonus, t.physicalBonus);
+                this.animateValue(this.elements.totalBonus, t.percentBonus + t.physicalBonus);
+                this.elements.totalDays.textContent = `${t.days} 天`;
+                this.elements.avgRate.textContent = `Avg ${avgRate}%`;
+                const progress = Math.min((t.days / CONFIG.MAX_DAYS_VISUAL) * 100, 100);
+                this.elements.progressBar.style.width = `${progress}%`;
+            },
+
+            animateValue(element, value) {
+                const formatted = `RM${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                if (element.textContent !== formatted) {
+                    element.textContent = formatted;
+                    gsap.fromTo(element, { scale: 1.05 }, { scale: 1, duration: 0.3 });
+                }
+            },
+
+            generateMessages(project) {
+                const t = Store.calculateProjectTotals(project);
+                const daily = project.amount * (project.percent / 100);
+                const baseReturn = project.amount + (daily * project.days);
+                const percentTier = t.percentTier;
+                const physicalTier = t.physicalTier;
+
+                let bonusLinesChinese = '';
+                let bonusLinesEnglish = '';
+                let bonusLinesMalay = '';
+
+                // 现金奖励话术：不出现档位名称与百分比，只展示最终奖励金额
+                if (percentTier && project.percentBonusEnabled) {
+                    bonusLinesChinese += `
+🎁 专属好礼：额外获得现金奖励 *RM${t.percentBonus.toFixed(2)}* 🔥`;
+                    bonusLinesEnglish += `
+🎁 Exclusive Reward: extra cash bonus of *RM${t.percentBonus.toFixed(2)}* 🔥`;
+                    bonusLinesMalay += `
+🎁 Ganjaran Eksklusif: bonus tunai tambahan *RM${t.percentBonus.toFixed(2)}* 🔥`;
+                }
+                if (physicalTier) {
+                    bonusLinesChinese += `
+🎁 ${physicalTier.name}：投资即送，价值 *RM${physicalTier.value}* 的 ${physicalTier.name} 🎉`;
+                    bonusLinesEnglish += `
+🎁 ${physicalTier.name}: Receive a complimentary ${physicalTier.name} worth *RM${physicalTier.value}* 🎉`;
+                    bonusLinesMalay += `
+🎁 ${physicalTier.name}: Terima ${physicalTier.name} bernilai *RM${physicalTier.value}* secara percuma 🎉`;
+                }
+
+                const chinese = `🎉 恭喜您成功认购 *【${project.name}】* *${project.days}天*期项目！
+您的资金已正式进入高效运行模式，开启收益之旅 ✨
+💰 投入金额： *RM${project.amount.toFixed(2)}*
+📈 每日收益： *RM${daily.toFixed(2)}*
+⏰ 项目周期： *${project.days}天*
+📊 预期回报： 您将获得总计 *RM${baseReturn.toFixed(2)}*（*本金+收益*）。${bonusLinesChinese}
+💡 *选择大于努力，行动决定未来。今天的小投入，就是明天的大回报。继续保持，您值得更好的收获！* ✨`;
+
+                const english = `🎉 Congratulations on successfully subscribing to *【${project.name}】* *${project.days}-Day* investment project!
+Your funds have officially entered high-efficiency mode, starting the journey of returns ✨
+💰 Investment Amount: *RM${project.amount.toFixed(2)}*
+📈 Daily Return: *RM${daily.toFixed(2)}*
+⏰ Project Duration: *${project.days} days*
+📊 Expected Return: You will receive a total of *RM${baseReturn.toFixed(2)}* (*Principal + Profit*).${bonusLinesEnglish}
+💡 *Choice is greater than effort, action determines the future. Today's small investment is tomorrow's big return. Keep going, you deserve better harvests!* ✨`;
+
+                const malay = `🎉 Tahniah atas langganan berjaya *【${project.name}】* projek *${project.days}-Hari*!
+Dana anda telah secara rasmi memasuki mod kecekapan tinggi, memulakan perjalanan pulangan ✨
+💰 Jumlah Pelaburan: *RM${project.amount.toFixed(2)}*
+📈 Pulangan Harian: *RM${daily.toFixed(2)}*
+⏰ Tempoh Projek: *${project.days} hari*
+📊 Jangkaan Pulangan: Anda akan menerima jumlah *RM${baseReturn.toFixed(2)}* (*Modal + Keuntungan*).${bonusLinesMalay}
+💡 *Pilihan lebih besar daripada usaha, tindakan menentukan masa depan. Pelaburan kecil hari ini adalah pulangan besar esok. Teruskan, anda layak mendapat hasil yang lebih baik!* ✨`;
+
+                return { chinese, english, malay };
+            },
+
+            copyToClipboard(text) {
+                return navigator.clipboard.writeText(text).catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                });
+            },
+
+            copyMessage(id, lang) {
+                const project = Store.projects.find(p => p.id === id);
+                if (!project) return;
+                const messages = this.generateMessages(project);
+                const langNames = { chinese: '中文 🇨🇳', english: 'English 🇬🇧', malay: 'Melayu 🇲🇾' };
+                this.copyToClipboard(messages[lang])
+                    .then(() => this.showToast(`已复制 ${langNames[lang]} 话术`));
+            },
+
+            copyAllMessages(lang) {
+                if (!Store.projects.length) { this.showToast('暂无项目可复制'); return; }
+                const separator = { chinese: '\n\n━━━━━━━━━━━━━━\n\n', english: '\n\n━━━━━━━━━━━━━━\n\n', malay: '\n\n━━━━━━━━━━━━━━\n\n' };
+                const combined = Store.projects.map(p => this.generateMessages(p)[lang]).join(separator[lang]);
+                const langNames = { chinese: '中文 🇨🇳', english: 'English 🇬🇧', malay: 'Melayu 🇲🇾' };
+                this.copyToClipboard(combined)
+                    .then(() => this.showToast(`已复制全部 ${Store.projects.length} 个项目的 ${langNames[lang]} 话术`));
+            },
+
+            showToast(message) {
+                this.elements.toast.textContent = message;
+                this.elements.toast.classList.add('show');
+                clearTimeout(this._toastTimer);
+                this._toastTimer = setTimeout(() => { this.elements.toast.classList.remove('show'); }, 2000);
+            },
+
+            showSaveStatus(status) {
+                const indicator = this.elements.saveIndicator;
+                const text = indicator.querySelector('span');
+                indicator.className = `save-indicator ${status} show`;
+                text.textContent = status === 'loading' ? '保存中...' : '已自动保存';
+                if (status === 'success') {
+                    const now = new Date();
+                    this.elements.lastSaved.textContent = `上次保存: ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+                    clearTimeout(this._saveTimer);
+                    this._saveTimer = setTimeout(() => { indicator.classList.remove('show'); }, 2000);
+                }
+            },
+
+            clearAll() {
+                if (!confirm('确定要清空所有项目数据吗？此操作不可恢复。')) return;
+                Store.clear();
+                this.render();
+                this.updateSummary();
+                this.elements.lastSaved.textContent = '数据已清空';
+                this.showToast('所有数据已清空');
+            }
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => UI.init());
+        } else {
+            UI.init();
+        }
+    </script>
+</body>
+</html>
